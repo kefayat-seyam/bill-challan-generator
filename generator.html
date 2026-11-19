@@ -73,10 +73,13 @@
 
     <section class="workspace">
       <div class="toolbar">
-        <div class="segmented">
-          <button id="billTab" class="active" type="button">Bill</button>
-          <button id="challanTab" type="button">Challan</button>
-        </div>
+        <label class="toggle">Show
+          <select id="showType" style="width:auto;margin:0">
+            <option value="both">Bill and challan</option>
+            <option value="bill">Bill only</option>
+            <option value="challan">Challan only</option>
+          </select>
+        </label>
         <label class="toggle"><input id="capitalizeToggle" type="checkbox" checked> Auto-capitalize</label>
         <label class="toggle"><input id="commaToggle" type="checkbox" checked> Auto-commas</label>
       </div>

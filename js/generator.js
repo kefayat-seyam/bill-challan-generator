@@ -26,7 +26,7 @@ const els = {
   otherRef: document.getElementById("otherRef"),
   logoUpload: document.getElementById("logoUpload"),
   billTab: document.getElementById("billTab"),
-  challanTab: document.getElementById("challanTab"),
+  showType: document.getElementById("showType"),
   capitalizeToggle: document.getElementById("capitalizeToggle"),
   commaToggle: document.getElementById("commaToggle"),
   documentRef: document.getElementById("documentRef"),
@@ -54,7 +54,7 @@ function setupMode() {
   els.documentRef.value = unity ? nextUnityRef(false) : "";
   if (unity) els.documentRef.readOnly = true;
   els.documentDate.value = new Date().toISOString().slice(0, 10);
-  els.billTitle.value = "";
+  els.billTitle.value = "Bill";
   if (unity) {
     els.otherCompanyName.value = "";
   }
@@ -83,7 +83,8 @@ function titleCaseOutput(value) {
 
 function formatNumber(value) {
   const number = Number(String(value).replace(/,/g, "")) || 0;
-  const result = String(Math.round(number * 100) / 100);
+  const rounded = Math.round((number + Number.EPSILON) * 100) / 100;
+  const result = String(rounded);
   if (!els.commaToggle.checked) return result;
   const [whole, decimal] = result.split(".");
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (decimal ? `.${decimal}` : "");
@@ -97,7 +98,7 @@ function formatQuantity(value) {
 }
 
 function numberInWordsIndian(num) {
-  const n = Math.floor(Number(num) || 0);
+  const n = Math.round(Number(num) || 0);
   if (n === 0) return "Zero";
   const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
     "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
@@ -126,7 +127,9 @@ function addItem(item = {}) {
   state.items.push({
     id: uid(),
     description: item.description || "",
-    quantity: item.quantity || "",
+    note: item.note || "",
+    quantity: item.quantity || "1",
+    quantityUnit: item.quantityUnit || "Pcs",
     unitPrice: item.unitPrice || "",
     total: item.total || ""
   });
@@ -149,11 +152,15 @@ function renderItems() {
     description.placeholder = "Description";
     description.value = item.description;
 
+    const note = document.createElement("textarea");
+    note.placeholder = "Note";
+    note.value = item.note || "";
+
     const quantity = document.createElement("input");
     quantity.placeholder = "Quantity";
     quantity.value = item.quantity;
 
-    row.append(number, description, quantity);
+    row.append(number, description, note, quantity);
 
     if (state.documentType === "bill") {
       const unitPrice = document.createElement("input");
@@ -176,10 +183,10 @@ function renderItems() {
     });
     row.appendChild(remove);
 
-    [description, quantity].forEach(input => input.addEventListener("input", () => syncAndRender(row)));
+    [description, note, quantity].forEach(input => input.addEventListener("input", () => syncAndRender(row)));
     if (state.documentType === "bill") {
-      row.querySelectorAll("input")[1].addEventListener("input", () => syncAndRender(row));
-      row.querySelectorAll("input")[2].addEventListener("input", () => syncAndRender(row));
+      unitPrice.addEventListener("input", () => syncAndRender(row));
+      total.addEventListener("input", () => syncAndRender(row));
     }
     els.itemsTable.appendChild(row);
   });
@@ -189,12 +196,13 @@ function syncAndRender(row) {
   const item = state.items.find(entry => entry.id === row.dataset.id);
   const inputs = row.querySelectorAll("input, textarea");
   item.description = inputs[0].value;
+  item.note = inputs[1].value;
   if (state.documentType === "challan") {
-    item.quantity = inputs[1].value;
+    item.quantity = inputs[2].value;
   } else {
-    item.quantity = inputs[1].value;
-    item.unitPrice = inputs[2].value;
-    item.total = inputs[3].value;
+    item.quantity = inputs[2].value;
+    item.unitPrice = inputs[3].value;
+    item.total = inputs[4].value;
   }
   if (state.documentType === "bill") {
     const autoTotal = row.querySelectorAll("input")[2];
@@ -211,8 +219,11 @@ function calculatedTotal(item) {
 
 function getBillTotal() {
   return state.items.reduce((sum, item) => {
-    const supplied = Number(String(item.total).replace(/,/g, ""));
-    if (supplied) return sum + supplied;
+    const suppliedText = String(item.total || "").trim();
+    if (suppliedText !== "") {
+      const supplied = Number(suppliedText.replace(/,/g, ""));
+      if (Number.isFinite(supplied)) return sum + supplied;
+    }
     const quantity = Number(String(item.quantity).replace(/[^0-9.-]/g, "")) || 0;
     const price = Number(String(item.unitPrice).replace(/,/g, "")) || 0;
     return sum + quantity * price;
@@ -277,11 +288,10 @@ function renderPreview() {
   const customization = companyCustomization();
 
   const tableRows = state.items.map((item, index) => {
-    const descriptionLines = String(item.description || "").split("\n");
-    const desc = escapeHtml(titleCaseOutput(descriptionLines.shift() || ""));
-    const subLines = descriptionLines.map(line =>
-      `<span class="sub-description">${escapeHtml(titleCaseOutput(line))}</span>`
-    ).join("");
+    const desc = escapeHtml(titleCaseOutput(item.description || ""));
+    const subLines = item.note
+      ? `<span class="sub-description">${escapeHtml(titleCaseOutput(item.note))}</span>`
+      : "";
     const descriptionHtml = `<strong>${desc}</strong>${subLines}`;
     const quantity = formatQuantity(item.quantity);
     const serial = String(index + 1).padStart(2, "0");
@@ -293,14 +303,22 @@ function renderPreview() {
     return `<tr><td>${serial}</td><td class="description">${descriptionHtml}</td><td>${quantity}</td></tr>`;
   }).join("") || `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>${bill ? "<td>&nbsp;</td><td>&nbsp;</td>" : ""}</tr>`;
 
-  const table = bill
+  const billTable = bill
     ? `<table class="doc-table bills">
         <thead><tr><th>SI.</th><th>Name of Item Descriptions</th><th>Quantity (Pcs)</th><th>Unit Price (Tk.)</th><th>Total Price (Tk.)</th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>`
-    : `<table class="doc-table challan">
+    : "";
+  const challanTableHtml = `<table class="doc-table challan">
         <thead><tr><th>SI.</th><th>Name of Item Descriptions</th><th>Quantity (Pcs)</th></tr></thead>
-        <tbody>${tableRows}</tbody>
+        <tbody>${state.items.map((item, index) => {
+          const descriptionLines = String(item.description || "").split("\n");
+              const desc = escapeHtml(titleCaseOutput(item.description || ""));
+              const subLines = item.note
+                ? `<span class="sub-description">${escapeHtml(titleCaseOutput(item.note))}</span>`
+                : "";
+          return `<tr><td>${String(index + 1).padStart(2, "0")}</td><td class="description"><strong>${desc}</strong>${subLines}</td><td>${formatQuantity(item.quantity)}</td></tr>`;
+        }).join("")}</tbody>
       </table>`;
 
   let totalHtml = "";
@@ -314,35 +332,43 @@ function renderPreview() {
     </table>`;
   }
 
-  let signatureHtml = "";
-  if (bill) {
-    const signatory = escapeHtml(titleCaseOutput(id.signatory));
-    const designation = escapeHtml(titleCaseOutput(id.designation));
-    signatureHtml = `<div class="submitted">
+  const signatory = escapeHtml(titleCaseOutput(id.signatory));
+  const designation = escapeHtml(titleCaseOutput(id.designation));
+  const billSignature = `<div class="submitted">
         <div>Regards By</div>
         <strong>${signatory}<br>${designation}<br>${escapeHtml(titleCaseOutput(id.companyName))}</strong>
       </div>`;
-  } else {
-    const deliveryLabel = customization.deliveryLabel || "Delivery By";
-    const receivedLabel = customization.receivedLabel || "Received By";
-    const receivedText = customization.receivedText ||
-      els.onBehalf.value.trim() ||
-      `On Be Half of ${els.clientName.value.trim()}`;
-    signatureHtml = `<div class="signature-area">
+  const deliveryLabel = customization.deliveryLabel || "Delivery By";
+  const receivedLabel = customization.receivedLabel || "Received By";
+  const receivedText = customization.receivedText ||
+    (els.onBehalf.value.trim() ? `On Behalf of ${els.onBehalf.value.trim()}` : `On Behalf of ${els.clientName.value.trim()}`);
+  const challanSignature = `<div class="signature-area">
         <div class="signature-block left"><strong>${escapeHtml(titleCaseOutput(deliveryLabel))}</strong><span>${escapeHtml(titleCaseOutput(id.companyName))}</span></div>
         <div class="signature-block right"><strong>${escapeHtml(titleCaseOutput(receivedLabel))}</strong><span>${escapeHtml(titleCaseOutput(receivedText))}</span></div>
       </div>`;
-  }
 
-  els.preview.innerHTML = `<article class="document-page document-match">
+  const billPage = `<article class="document-page document-match">
     <div class="doc-ref"><span>Ref: ${ref}</span><span>Date: ${date}</span></div>
     ${requisition ? `<div class="doc-address"><strong>Requisition No: ${titleCaseOutput(requisition)}</strong></div>` : ""}
     <div class="doc-address"><strong>To,</strong>${clientName ? `<span class="doc-address-line">${clientName}</span>` : ""}${address ? `<span class="doc-address-line">${address}</span>` : ""}</div>
-    <div class="doc-title">${bill ? billTitle || "Bill" : challanNo ? `Challan no-${escapeHtml(titleCaseOutput(challanNo))}` : "Delivery Challan"}</div>
-    ${table}
+    <div class="doc-title">${billTitle || "Bill"}</div>
+    ${billTable}
     ${totalHtml}
-    ${signatureHtml}
+    ${billSignature}
   </article>`;
+  const challanPage = `<article class="document-page document-match">
+    <div class="doc-ref"><span>Ref: ${ref}</span><span>Date: ${date}</span></div>
+    ${requisition ? `<div class="doc-address"><strong>Requisition No: ${titleCaseOutput(requisition)}</strong></div>` : ""}
+    <div class="doc-address"><strong>To,</strong>${clientName ? `<span class="doc-address-line">${clientName}</span>` : ""}${address ? `<span class="doc-address-line">${address}</span>` : ""}</div>
+    <div class="doc-title">${challanNo ? `Challan no-${escapeHtml(titleCaseOutput(challanNo))}` : "Delivery Challan"}</div>
+    ${challanTableHtml}
+    ${challanSignature}
+  </article>`;
+
+  const show = els.showType ? els.showType.value : "both";
+  els.preview.innerHTML =
+    (show !== "challan" ? billPage : "") +
+    (show !== "bill" ? challanPage : "");
 }
 
 function syncTotalsFromInputs() {
@@ -353,12 +379,13 @@ function syncTotalsFromInputs() {
     const inputs = row.querySelectorAll("input, textarea");
     if (!inputs.length) return;
     item.description = inputs[0].value;
+    item.note = inputs[1].value;
     if (state.documentType === "bill") {
-      item.quantity = inputs[1].value;
-      item.unitPrice = inputs[2].value;
-      item.total = inputs[3].value;
+      item.quantity = inputs[2].value;
+      item.unitPrice = inputs[3].value;
+      item.total = inputs[4].value;
     } else {
-      item.quantity = inputs[1].value;
+      item.quantity = inputs[2].value;
     }
   });
 }
@@ -505,18 +532,28 @@ document.getElementById("saveCompany").addEventListener("click", () => {
 
 document.getElementById("clearProfile").addEventListener("click", clearProfile);
 
-els.billTab.addEventListener("click", () => setDocumentType("bill"));
-els.challanTab.addEventListener("click", () => setDocumentType("challan"));
-
 function setDocumentType(type) {
   state.documentType = type;
-  els.billTab.classList.toggle("active", type === "bill");
-  els.challanTab.classList.toggle("active", type === "challan");
-  els.billTitleWrap.hidden = type !== "bill";
-  els.requisitionWrap.hidden = type !== "bill";
+  if (els.showType) {
+    els.showType.value = type === "challan" ? "challan" : "bill";
+  }
+  els.billTitleWrap.hidden = type === "challan";
+  els.requisitionWrap.hidden = type === "challan";
   els.challanNoWrap.hidden = type !== "challan";
   renderItems();
   renderPreview();
+}
+
+if (els.showType) {
+  els.showType.addEventListener("change", () => {
+    const show = els.showType.value;
+    state.documentType = show === "challan" ? "challan" : "bill";
+    els.billTitleWrap.hidden = show === "challan";
+    els.requisitionWrap.hidden = show === "challan";
+    els.challanNoWrap.hidden = show !== "challan";
+    renderItems();
+    renderPreview();
+  });
 }
 
 els.addRow.addEventListener("click", () => addItem());
@@ -556,6 +593,7 @@ function collectDocument() {
   return {
     mode,
     documentType: state.documentType,
+    showType: els.showType ? els.showType.value : "both",
     clientName: els.clientName.value.trim(),
     clientAddress: els.clientAddress.value.trim(),
     onBehalf: els.onBehalf.value.trim(),
@@ -595,7 +633,13 @@ function restoreDocument(documentData) {
   els.commaToggle.checked = documentData.commas !== false;
   state.logoDataUrl = documentData.logoDataUrl || "";
   state.items = (documentData.items || []).map(item => ({ ...item, id: item.id || uid() }));
-  setDocumentType(documentData.documentType === "challan" ? "challan" : "bill");
+  if (els.showType) els.showType.value = documentData.showType || (documentData.documentType === "challan" ? "challan" : "both");
+  state.documentType = documentData.documentType === "challan" ? "challan" : "bill";
+  els.billTitleWrap.hidden = els.showType && els.showType.value === "challan";
+  els.requisitionWrap.hidden = els.showType && els.showType.value === "challan";
+  els.challanNoWrap.hidden = !(els.showType && els.showType.value === "challan");
+  renderItems();
+  renderPreview();
 }
 
 document.getElementById("saveDocument").addEventListener("click", () => {
@@ -646,90 +690,113 @@ async function downloadDocx() {
   }
   const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType } = window.docx;
   const id = identity();
-  const bill = state.documentType === "bill";
-  const children = [
-    new Paragraph({ children: [new TextRun(`Ref: ${els.documentRef.value}    Date: ${formatDate(els.documentDate.value)}`)] }),
-    new Paragraph({ children: [new TextRun("To,")] }),
-    new Paragraph({ children: [new TextRun(docText(els.clientName.value))] }),
-    new Paragraph({ children: [new TextRun(docText(els.clientAddress.value))] })
-  ];
+  const show = els.showType ? els.showType.value : "both";
 
-  if (els.requisitionNo.value.trim() && bill) {
-    children.push(new Paragraph({ children: [new TextRun(`Requisition No: ${docText(els.requisitionNo.value)}`)] }));
-  }
-  if (els.challanNo.value.trim() && !bill) {
-    children.push(new Paragraph({ children: [new TextRun(`Challan no-${docText(els.challanNo.value)}`)] }));
-  }
-
-  children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text: docText(bill ? els.billTitle.value || "Bill" : "Delivery Challan"), bold: true, underline: {} })]
-  }));
-
-  const headers = bill
-    ? ["SL", "Name of Item Descriptions", "Quantity (Pcs)", "Unit Price (Tk.)", "Total Price (Tk.)"]
-    : ["SL", "Name of Item Descriptions", "Quantity (Pcs)"];
-  const headerRow = new TableRow({
-    children: headers.map(text => new TableCell({ children: [new Paragraph({ text, alignment: AlignmentType.CENTER })] }))
-  });
-  const itemRows = state.items.map((item, index) => {
-    const cells = [
-      new TableCell({ children: [new Paragraph({ text: String(index + 1).padStart(2, "0"), alignment: AlignmentType.CENTER })] }),
-      new TableCell({ children: [new Paragraph(docText(item.description))] }),
-      new TableCell({ children: [new Paragraph({ text: formatQuantity(item.quantity), alignment: AlignmentType.CENTER })] })
+  function headerChildren() {
+    const children = [
+      new Paragraph({ children: [new TextRun(`Ref: ${els.documentRef.value}    Date: ${formatDate(els.documentDate.value)}`)] }),
+      new Paragraph({ children: [new TextRun("To,")] }),
+      new Paragraph({ children: [new TextRun(docText(els.clientName.value))] }),
+      ...docText(els.clientAddress.value).split("\n").filter(Boolean).map(line =>
+        new Paragraph({ children: [new TextRun(line)] })
+      )
     ];
-    if (bill) {
-      cells.push(new TableCell({ children: [new Paragraph({ text: formatNumber(item.unitPrice), alignment: AlignmentType.CENTER })] }));
-      cells.push(new TableCell({ children: [new Paragraph({ text: formatNumber(item.total || calculatedTotal(item)), alignment: AlignmentType.CENTER })] }));
-    }
-    return new TableRow({ children: cells });
-  });
-  children.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [headerRow, ...itemRows]
-  }));
-
-  if (bill) {
-    const total = getBillTotal();
-    children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`Total = ${formatNumber(total)}/- Tk`)] }));
-    children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`In word: ${numberInWordsIndian(total)} Taka Only`)] }));
-    children.push(new Paragraph({ children: [new TextRun("Regards By")] }));
-    children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [
-      new TextRun({ text: docText(id.signatory), bold: true }),
-      new TextRun({ text: `\n${docText(id.designation)}\n${docText(id.companyName)}` })
-    ] }));
-  } else {
-    const customization = companyCustomization();
-    const receivedText = customization.receivedText ||
-      els.onBehalf.value.trim() ||
-      `On Be Half of ${els.clientName.value.trim()}`;
-    const signatureTable = new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: {
-        top: { style: "nil", size: 0, color: "FFFFFF" },
-        bottom: { style: "nil", size: 0, color: "FFFFFF" },
-        left: { style: "nil", size: 0, color: "FFFFFF" },
-        right: { style: "nil", size: 0, color: "FFFFFF" },
-        insideHorizontal: { style: "nil", size: 0, color: "FFFFFF" },
-        insideVertical: { style: "nil", size: 0, color: "FFFFFF" }
-      },
-      rows: [new TableRow({
-        children: [
-          new TableCell({ children: [
-            new Paragraph({ children: [new TextRun({ text: docText(customization.deliveryLabel || "Delivery By"), bold: true })] }),
-            new Paragraph(docText(id.companyName))
-          ] }),
-          new TableCell({ children: [
-            new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: docText(customization.receivedLabel || "Received By"), bold: true })] }),
-            new Paragraph({ alignment: AlignmentType.RIGHT, text: docText(receivedText) })
-          ] })
-        ]
-      })]
-    });
-    children.push(signatureTable);
+    return children;
   }
 
-  const doc = new Document({ sections: [{ properties: {}, children }] });
+  function pageChildren(bill) {
+    const children = headerChildren();
+    if (els.requisitionNo.value.trim() && bill) {
+      children.push(new Paragraph({ children: [new TextRun(`Requisition No: ${docText(els.requisitionNo.value)}`)] }));
+    }
+    children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({
+        text: bill ? docText(els.billTitle.value || "Bill") : (els.challanNo.value.trim() ? `Challan no-${docText(els.challanNo.value)}` : "Delivery Challan"),
+        bold: true,
+        underline: {}
+      })]
+    }));
+
+    const headers = bill
+      ? ["SL", "Name of Item Descriptions", "Quantity (Pcs)", "Unit Price (Tk.)", "Total Price (Tk.)"]
+      : ["SL", "Name of Item Descriptions", "Quantity (Pcs)"];
+    const headerRow = new TableRow({
+      children: headers.map(text => new TableCell({ children: [new Paragraph({ text, alignment: AlignmentType.CENTER })] }))
+    });
+    const itemRows = state.items.map((item, index) => {
+      const descriptionRuns = [new TextRun({ text: docText(item.description), bold: true })];
+      if (item.note) descriptionRuns.push(new TextRun(` ${docText(item.note)}`));
+      const cells = [
+        new TableCell({ children: [new Paragraph({ text: String(index + 1).padStart(2, "0"), alignment: AlignmentType.CENTER })] }),
+        new TableCell({ children: [new Paragraph({ children: descriptionRuns })] }),
+        new TableCell({ children: [new Paragraph({ text: formatQuantity(item.quantity), alignment: AlignmentType.CENTER })] })
+      ];
+      if (bill) {
+        cells.push(new TableCell({ children: [new Paragraph({ text: formatNumber(item.unitPrice), alignment: AlignmentType.CENTER })] }));
+        cells.push(new TableCell({ children: [new Paragraph({ text: formatNumber(item.total || calculatedTotal(item)), alignment: AlignmentType.CENTER })] }));
+      }
+      return new TableRow({ children: cells });
+    });
+    children.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [headerRow, ...itemRows]
+    }));
+
+    if (bill) {
+      const total = getBillTotal();
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ columnSpan: 4, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Total =", bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${formatNumber(total)}/-Tk`, bold: true })] })] })
+            ]
+          }),
+          new TableRow({ children: [new TableCell({ columnSpan: 5, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `In word: ${numberInWordsIndian(total)} Taka Only`, bold: true })] })] })] })
+        ]
+      }));
+      children.push(new Paragraph({ children: [new TextRun("Regards By")], spacing: { before: 600 } }));
+      children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [
+        new TextRun({ text: docText(id.signatory), bold: true }),
+        new TextRun({ text: `\n${docText(id.designation)}\n${docText(id.companyName)}` })
+      ] }));
+    } else {
+      const customization = companyCustomization();
+      const receivedText = customization.receivedText ||
+        (els.onBehalf.value.trim() ? `On Behalf of ${els.onBehalf.value.trim()}` : `On Behalf of ${els.clientName.value.trim()}`);
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        spacing: { before: 900 },
+        rows: [new TableRow({
+          children: [
+            new TableCell({ children: [
+              new Paragraph({ children: [new TextRun({ text: docText(customization.deliveryLabel || "Delivery By"), bold: true })] }),
+              new Paragraph(docText(id.companyName))
+            ] }),
+            new TableCell({ children: [
+              new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: docText(customization.receivedLabel || "Received By"), bold: true })] }),
+              new Paragraph({ alignment: AlignmentType.RIGHT, text: docText(receivedText) })
+            ] })
+          ]
+        })]
+      }));
+    }
+    return children;
+  }
+
+  const children = [];
+  if (show !== "challan") children.push(...pageChildren(true));
+  if (show === "both") children.push(new Paragraph({ pageBreakBefore: true, text: "" }));
+  if (show !== "bill") children.push(...pageChildren(false));
+
+  const doc = new Document({
+    sections: [{
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1000, bottom: 1000, left: 1100, right: 1100 } } },
+      children
+    }]
+  });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
