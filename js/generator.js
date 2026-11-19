@@ -75,7 +75,9 @@ const UNITY_CONFIG = window.UNITY_CONFIG;
 function titleCaseOutput(value) {
   if (!els.capitalizeToggle.checked) return value;
   return String(value).replace(/\S+/g, word =>
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    word === word.toUpperCase() && /^[A-Z][A-Z.&/-]*$/.test(word)
+      ? word
+      : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   );
 }
 
@@ -275,15 +277,20 @@ function renderPreview() {
   const customization = companyCustomization();
 
   const tableRows = state.items.map((item, index) => {
-    const desc = escapeHtml(titleCaseOutput(item.description)).replace(/\n/g, "<br>");
+    const descriptionLines = String(item.description || "").split("\n");
+    const desc = escapeHtml(titleCaseOutput(descriptionLines.shift() || ""));
+    const subLines = descriptionLines.map(line =>
+      `<span class="sub-description">${escapeHtml(titleCaseOutput(line))}</span>`
+    ).join("");
+    const descriptionHtml = `<strong>${desc}</strong>${subLines}`;
     const quantity = formatQuantity(item.quantity);
     const serial = String(index + 1).padStart(2, "0");
     if (bill) {
       const unit = formatNumber(item.unitPrice);
       const total = formatNumber(item.total || calculatedTotal(item));
-      return `<tr><td>${serial}</td><td>${desc}</td><td>${quantity}</td><td>${unit}</td><td>${total}</td></tr>`;
+      return `<tr><td>${serial}</td><td class="description">${descriptionHtml}</td><td>${quantity}</td><td>${unit}</td><td>${total}</td></tr>`;
     }
-    return `<tr><td>${serial}</td><td>${desc}</td><td>${quantity}</td></tr>`;
+    return `<tr><td>${serial}</td><td class="description">${descriptionHtml}</td><td>${quantity}</td></tr>`;
   }).join("") || `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>${bill ? "<td>&nbsp;</td><td>&nbsp;</td>" : ""}</tr>`;
 
   const table = bill
@@ -299,8 +306,12 @@ function renderPreview() {
   let totalHtml = "";
   if (bill) {
     const total = getBillTotal();
-    totalHtml = `<div class="doc-total">Total = <strong>${formatNumber(total)}/- Tk</strong></div>
-      <div class="doc-words">In word: ${numberInWordsIndian(total)} Taka Only</div>`;
+    totalHtml = `<table class="doc-table bill-summary">
+      <tbody>
+        <tr><td colspan="4" style="border-right:0;text-align:right"><strong>Total =</strong></td><td style="text-align:center"><strong>${formatNumber(total)}/-Tk</strong></td></tr>
+        <tr><td colspan="5" style="text-align:center"><strong>In word : ${numberInWordsIndian(total)} Taka Only</strong></td></tr>
+      </tbody>
+    </table>`;
   }
 
   let signatureHtml = "";
@@ -308,7 +319,7 @@ function renderPreview() {
     const signatory = escapeHtml(titleCaseOutput(id.signatory));
     const designation = escapeHtml(titleCaseOutput(id.designation));
     signatureHtml = `<div class="submitted">
-        <div>Submitted By</div>
+        <div>Regards By</div>
         <strong>${signatory}<br>${designation}<br>${escapeHtml(titleCaseOutput(id.companyName))}</strong>
       </div>`;
   } else {
@@ -318,17 +329,16 @@ function renderPreview() {
       els.onBehalf.value.trim() ||
       `On Be Half of ${els.clientName.value.trim()}`;
     signatureHtml = `<div class="signature-area">
-        <div class="signature-block"><strong>${escapeHtml(titleCaseOutput(deliveryLabel))}<br>${escapeHtml(titleCaseOutput(id.companyName))}</strong></div>
-        <div class="signature-block"><strong>${escapeHtml(titleCaseOutput(receivedLabel))}<br>${escapeHtml(titleCaseOutput(receivedText))}</strong></div>
+        <div class="signature-block left"><strong>${escapeHtml(titleCaseOutput(deliveryLabel))}</strong><span>${escapeHtml(titleCaseOutput(id.companyName))}</span></div>
+        <div class="signature-block right"><strong>${escapeHtml(titleCaseOutput(receivedLabel))}</strong><span>${escapeHtml(titleCaseOutput(receivedText))}</span></div>
       </div>`;
   }
 
-  els.preview.innerHTML = `<article class="document-page centered">
+  els.preview.innerHTML = `<article class="document-page document-match">
     <div class="doc-ref"><span>Ref: ${ref}</span><span>Date: ${date}</span></div>
     ${requisition ? `<div class="doc-address"><strong>Requisition No: ${titleCaseOutput(requisition)}</strong></div>` : ""}
-    <div class="doc-address"><strong>To,</strong>${clientName ? `<br>${clientName}` : ""}${address ? `<br>${address}` : ""}</div>
-    ${challanNo ? `<div><strong>Challan no: ${titleCaseOutput(challanNo)}</strong></div>` : ""}
-    <div class="doc-title">${bill ? billTitle || "Bill" : "Delivery Challan"}</div>
+    <div class="doc-address"><strong>To,</strong>${clientName ? `<span class="doc-address-line">${clientName}</span>` : ""}${address ? `<span class="doc-address-line">${address}</span>` : ""}</div>
+    <div class="doc-title">${bill ? billTitle || "Bill" : challanNo ? `Challan no-${escapeHtml(titleCaseOutput(challanNo))}` : "Delivery Challan"}</div>
     ${table}
     ${totalHtml}
     ${signatureHtml}
@@ -648,7 +658,7 @@ async function downloadDocx() {
     children.push(new Paragraph({ children: [new TextRun(`Requisition No: ${docText(els.requisitionNo.value)}`)] }));
   }
   if (els.challanNo.value.trim() && !bill) {
-    children.push(new Paragraph({ children: [new TextRun(`Challan no: ${docText(els.challanNo.value)}`)] }));
+    children.push(new Paragraph({ children: [new TextRun(`Challan no-${docText(els.challanNo.value)}`)] }));
   }
 
   children.push(new Paragraph({
@@ -683,25 +693,40 @@ async function downloadDocx() {
     const total = getBillTotal();
     children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`Total = ${formatNumber(total)}/- Tk`)] }));
     children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`In word: ${numberInWordsIndian(total)} Taka Only`)] }));
-    children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("Submitted By")] }));
+    children.push(new Paragraph({ children: [new TextRun("Regards By")] }));
     children.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [
       new TextRun({ text: docText(id.signatory), bold: true }),
       new TextRun({ text: `\n${docText(id.designation)}\n${docText(id.companyName)}` })
     ] }));
   } else {
     const customization = companyCustomization();
-    children.push(new Paragraph({
-      children: [
-        new TextRun(`${docText(customization.deliveryLabel || "Delivery By")}     ${docText(customization.receivedLabel || "Received By")}`)
-      ],
-      alignment: AlignmentType.CENTER
-    }));
-    children.push(new Paragraph({
-      children: [
-        new TextRun(`${docText(id.companyName)}     ${docText(customization.receivedText || `On Be Half of ${els.clientName.value.trim()}`)}`)
-      ],
-      alignment: AlignmentType.CENTER
-    }));
+    const receivedText = customization.receivedText ||
+      els.onBehalf.value.trim() ||
+      `On Be Half of ${els.clientName.value.trim()}`;
+    const signatureTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: "nil", size: 0, color: "FFFFFF" },
+        bottom: { style: "nil", size: 0, color: "FFFFFF" },
+        left: { style: "nil", size: 0, color: "FFFFFF" },
+        right: { style: "nil", size: 0, color: "FFFFFF" },
+        insideHorizontal: { style: "nil", size: 0, color: "FFFFFF" },
+        insideVertical: { style: "nil", size: 0, color: "FFFFFF" }
+      },
+      rows: [new TableRow({
+        children: [
+          new TableCell({ children: [
+            new Paragraph({ children: [new TextRun({ text: docText(customization.deliveryLabel || "Delivery By"), bold: true })] }),
+            new Paragraph(docText(id.companyName))
+          ] }),
+          new TableCell({ children: [
+            new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: docText(customization.receivedLabel || "Received By"), bold: true })] }),
+            new Paragraph({ alignment: AlignmentType.RIGHT, text: docText(receivedText) })
+          ] })
+        ]
+      })]
+    });
+    children.push(signatureTable);
   }
 
   const doc = new Document({ sections: [{ properties: {}, children }] });
