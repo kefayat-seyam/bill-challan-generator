@@ -80,8 +80,9 @@ button, a { cursor: pointer; }
 .mode-card:hover { border-color: var(--primary); transform: translateY(-2px); }
 .mode-card strong { font-size: 21px; }
 .mode-card span:last-child { color: var(--muted); }
-.mode-logo img { width: 82px; height: 82px; object-fit: contain; }
 .mode-icon { width: 82px; height: 82px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-size: 38px; color: var(--primary); }
+.mode-options { display: flex; gap: 8px; }
+.mode-options span { border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text) !important; padding: 8px 16px; }
 .pinned-section { margin-top: 30px; }
 .pinned-section h2 { font-size: 16px; }
 .pin-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -109,7 +110,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary); }
 .button-row, .action-bar, .items-head, .toolbar { display: flex; gap: 8px; align-items: center; }
 .button-row { flex-wrap: wrap; }
 .action-bar { margin: 12px 0; flex-wrap: wrap; }
-.locked-logo img { width: 70px; height: 70px; object-fit: contain; }
 .locked-field { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .locked-field span { color: var(--muted); }
 .locked-field strong { text-align: right; }
@@ -157,8 +157,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary); }
 }
 .document-page:last-child { page-break-after: auto; }
 .document-page.centered { justify-content: center; }
-.doc-header { display: grid; grid-template-columns: 90px 1fr 90px; align-items: start; margin-bottom: 18px; }
-.doc-logo { width: 80px; height: 80px; object-fit: contain; }
 .doc-ref { display: flex; justify-content: space-between; gap: 20px; font-size: 13px; }
 .doc-address { margin: 18px 0 12px; }
 .doc-address strong { display: block; }

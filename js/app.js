@@ -26,13 +26,20 @@ function renderPinned() {
   });
 }
 
-document.getElementById("unityCard").addEventListener("click", () => {
-  localStorage.setItem("billChallanLandingMode", "unity");
-  window.location.href = "generator.html?mode=unity";
+function openMode(mode, type = "bill") {
+  localStorage.setItem("billChallanLandingMode", mode);
+  window.location.href = `generator.html?mode=${mode}&type=${type}`;
+}
+
+document.querySelectorAll("[data-document-type]").forEach(option => {
+  option.addEventListener("click", event => {
+    event.stopPropagation();
+    const card = event.currentTarget.closest(".mode-card");
+    openMode(card.id === "unityCard" ? "unity" : "other", event.currentTarget.dataset.documentType);
+  });
 });
-document.getElementById("otherCard").addEventListener("click", () => {
-  localStorage.setItem("billChallanLandingMode", "other");
-  window.location.href = "generator.html?mode=other";
-});
+
+document.getElementById("unityCard").addEventListener("click", () => openMode("unity"));
+document.getElementById("otherCard").addEventListener("click", () => openMode("other"));
 
 renderPinned();

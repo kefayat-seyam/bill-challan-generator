@@ -4,5 +4,5 @@ window.UNITY_CONFIG = Object.freeze({
   designation: "Entrepreneur",
   refPrefix: "UTI2900826",
   refSerialStart: 288,
-  logo: "assets/logo.png"
+  logo: ""
 });

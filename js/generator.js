@@ -2,6 +2,7 @@ Storage.bindTheme(document.getElementById("themeToggle"));
 
 const params = new URLSearchParams(window.location.search);
 const mode = params.get("mode") === "other" ? "other" : "unity";
+const initialType = params.get("type") === "challan" ? "challan" : "bill";
 const state = {
   documentType: "bill",
   items: [],
@@ -84,6 +85,13 @@ function formatNumber(value) {
   if (!els.commaToggle.checked) return result;
   const [whole, decimal] = result.split(".");
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (decimal ? `.${decimal}` : "");
+}
+
+function formatQuantity(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/pcs/i.test(raw)) return raw.replace(/\bpcs\b/i, "Pcs");
+  return `${formatNumber(raw)} Pcs`;
 }
 
 function numberInWordsIndian(num) {
@@ -266,18 +274,16 @@ function renderPreview() {
   const challanNo = escapeHtml(titleCaseOutput(els.challanNo.value.trim()));
   const customization = companyCustomization();
 
-  let logoHtml = "";
-  if (id.logo) logoHtml = `<img class="doc-logo" src="${escapeHtml(id.logo)}" alt="">`;
-
   const tableRows = state.items.map((item, index) => {
     const desc = escapeHtml(titleCaseOutput(item.description)).replace(/\n/g, "<br>");
-    const quantity = formatNumber(item.quantity);
+    const quantity = formatQuantity(item.quantity);
+    const serial = String(index + 1).padStart(2, "0");
     if (bill) {
       const unit = formatNumber(item.unitPrice);
       const total = formatNumber(item.total || calculatedTotal(item));
-      return `<tr><td>${index + 1}</td><td>${desc}</td><td>${quantity}</td><td>${unit}</td><td>${total}</td></tr>`;
+      return `<tr><td>${serial}</td><td>${desc}</td><td>${quantity}</td><td>${unit}</td><td>${total}</td></tr>`;
     }
-    return `<tr><td>${index + 1}</td><td>${desc}</td><td>${quantity}</td></tr>`;
+    return `<tr><td>${serial}</td><td>${desc}</td><td>${quantity}</td></tr>`;
   }).join("") || `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>${bill ? "<td>&nbsp;</td><td>&nbsp;</td>" : ""}</tr>`;
 
   const table = bill
@@ -319,11 +325,6 @@ function renderPreview() {
 
   els.preview.innerHTML = `<article class="document-page centered">
     <div class="doc-ref"><span>Ref: ${ref}</span><span>Date: ${date}</span></div>
-    <div class="doc-header">
-      <div>${logoHtml}</div>
-      <div></div>
-      <div></div>
-    </div>
     ${requisition ? `<div class="doc-address"><strong>Requisition No: ${titleCaseOutput(requisition)}</strong></div>` : ""}
     <div class="doc-address"><strong>To,</strong>${clientName ? `<br>${clientName}` : ""}${address ? `<br>${address}` : ""}</div>
     ${challanNo ? `<div><strong>Challan no: ${titleCaseOutput(challanNo)}</strong></div>` : ""}
@@ -663,9 +664,9 @@ async function downloadDocx() {
   });
   const itemRows = state.items.map((item, index) => {
     const cells = [
-      new TableCell({ children: [new Paragraph({ text: String(index + 1), alignment: AlignmentType.CENTER })] }),
+      new TableCell({ children: [new Paragraph({ text: String(index + 1).padStart(2, "0"), alignment: AlignmentType.CENTER })] }),
       new TableCell({ children: [new Paragraph(docText(item.description))] }),
-      new TableCell({ children: [new Paragraph({ text: formatNumber(item.quantity), alignment: AlignmentType.CENTER })] })
+      new TableCell({ children: [new Paragraph({ text: formatQuantity(item.quantity), alignment: AlignmentType.CENTER })] })
     ];
     if (bill) {
       cells.push(new TableCell({ children: [new Paragraph({ text: formatNumber(item.unitPrice), alignment: AlignmentType.CENTER })] }));
@@ -716,7 +717,7 @@ async function downloadDocx() {
 document.getElementById("downloadDocx").addEventListener("click", downloadDocx);
 
 setupMode();
-setDocumentType("bill");
+setDocumentType(initialType);
 renderProfiles();
 addItem();
 
