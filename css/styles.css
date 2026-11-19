@@ -162,6 +162,20 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary); }
 .document-page:last-child { page-break-after: auto; }
 .document-page.centered { justify-content: center; }
 .document-page.document-match { justify-content: flex-start; }
+.document-page.document-match::before {
+  content: "";
+  display: block;
+  flex: 1 1 0;
+  min-height: 150px;
+  max-height: 150px;
+}
+.document-page.document-match::after {
+  content: "";
+  display: block;
+  flex: 1 1 0;
+  min-height: 150px;
+  max-height: 150px;
+}
 .doc-ref { display: flex; justify-content: space-between; gap: 20px; font-size: 13px; }
 .doc-address { margin: 64px 0 44px; line-height: 1.28; }
 .doc-address strong { display: block; margin-bottom: 2px; }

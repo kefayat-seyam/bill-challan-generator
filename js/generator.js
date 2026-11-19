@@ -685,7 +685,7 @@ function docText(value) {
 
 async function downloadDocx() {
   if (!window.docx) {
-    alert("DOCX library could not load.");
+    alert("DOCX library could not load. Refresh the page and try again.");
     return;
   }
   const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType } = window.docx;
