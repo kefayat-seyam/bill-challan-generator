@@ -212,11 +212,20 @@ function getBillTotal() {
 function formatDate(value) {
   if (!value) return "";
   const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return value;
   const dd = String(date.getDate()).padStart(2, "0");
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yy = String(date.getFullYear());
   return `${dd}/${mm}/${yy}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function identity() {
@@ -248,20 +257,20 @@ function renderPreview() {
   syncTotalsFromInputs();
   const id = identity();
   const bill = state.documentType === "bill";
-  const clientName = titleCaseOutput(els.clientName.value.trim());
-  const address = titleCaseOutput(els.clientAddress.value.trim()).replace(/\n/g, "<br>");
-  const billTitle = titleCaseOutput(els.billTitle.value.trim());
-  const ref = els.documentRef.value.trim();
+  const clientName = escapeHtml(titleCaseOutput(els.clientName.value.trim()));
+  const address = escapeHtml(titleCaseOutput(els.clientAddress.value.trim())).replace(/\n/g, "<br>");
+  const billTitle = escapeHtml(titleCaseOutput(els.billTitle.value.trim()));
+  const ref = escapeHtml(els.documentRef.value.trim());
   const date = formatDate(els.documentDate.value);
-  const requisition = els.requisitionNo.value.trim();
-  const challanNo = els.challanNo.value.trim();
+  const requisition = escapeHtml(titleCaseOutput(els.requisitionNo.value.trim()));
+  const challanNo = escapeHtml(titleCaseOutput(els.challanNo.value.trim()));
   const customization = companyCustomization();
 
   let logoHtml = "";
-  if (id.logo) logoHtml = `<img class="doc-logo" src="${id.logo}" alt="">`;
+  if (id.logo) logoHtml = `<img class="doc-logo" src="${escapeHtml(id.logo)}" alt="">`;
 
   const tableRows = state.items.map((item, index) => {
-    const desc = titleCaseOutput(item.description).replace(/\n/g, "<br>");
+    const desc = escapeHtml(titleCaseOutput(item.description)).replace(/\n/g, "<br>");
     const quantity = formatNumber(item.quantity);
     if (bill) {
       const unit = formatNumber(item.unitPrice);
@@ -290,11 +299,11 @@ function renderPreview() {
 
   let signatureHtml = "";
   if (bill) {
-    const signatory = titleCaseOutput(id.signatory);
-    const designation = titleCaseOutput(id.designation);
+    const signatory = escapeHtml(titleCaseOutput(id.signatory));
+    const designation = escapeHtml(titleCaseOutput(id.designation));
     signatureHtml = `<div class="submitted">
         <div>Submitted By</div>
-        <strong>${signatory}<br>${designation}<br>${titleCaseOutput(id.companyName)}</strong>
+        <strong>${signatory}<br>${designation}<br>${escapeHtml(titleCaseOutput(id.companyName))}</strong>
       </div>`;
   } else {
     const deliveryLabel = customization.deliveryLabel || "Delivery By";
@@ -303,8 +312,8 @@ function renderPreview() {
       els.onBehalf.value.trim() ||
       `On Be Half of ${els.clientName.value.trim()}`;
     signatureHtml = `<div class="signature-area">
-        <div class="signature-block"><strong>${titleCaseOutput(deliveryLabel)}<br>${titleCaseOutput(id.companyName)}</strong></div>
-        <div class="signature-block"><strong>${titleCaseOutput(receivedLabel)}<br>${titleCaseOutput(receivedText)}</strong></div>
+        <div class="signature-block"><strong>${escapeHtml(titleCaseOutput(deliveryLabel))}<br>${escapeHtml(titleCaseOutput(id.companyName))}</strong></div>
+        <div class="signature-block"><strong>${escapeHtml(titleCaseOutput(receivedLabel))}<br>${escapeHtml(titleCaseOutput(receivedText))}</strong></div>
       </div>`;
   }
 
@@ -510,6 +519,11 @@ els.addRow.addEventListener("click", () => addItem());
 els.logoUpload.addEventListener("change", () => {
   const file = els.logoUpload.files[0];
   if (!file) return;
+  if (!/^image\/(?:png|jpeg|gif|webp)$/i.test(file.type)) {
+    alert("Please upload a PNG, JPEG, GIF, or WebP image.");
+    els.logoUpload.value = "";
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
     state.logoDataUrl = reader.result;
@@ -689,8 +703,8 @@ async function downloadDocx() {
     }));
   }
 
-  const document = new Document({ sections: [{ properties: {}, children }] });
-  const blob = await Packer.toBlob(document);
+  const doc = new Document({ sections: [{ properties: {}, children }] });
+  const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
