@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document Generator</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html">Bill & Challan Generator</a>
+    <div class="top-actions">
+      <a id="customizeLink" class="button ghost" href="customize.html">Customize</a>
+      <button class="icon-button" id="themeToggle" type="button">Dark</button>
+    </div>
+  </header>
+
+  <main class="generator-layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>Client profiles</h2>
+        <div id="pinnedEditor" class="pin-row compact"></div>
+
+        <label>Client company name
+          <input id="clientName" type="text" placeholder="Company name">
+        </label>
+        <label>Address
+          <textarea id="clientAddress" rows="3" placeholder="Address"></textarea>
+        </label>
+        <label>On behalf of
+          <input id="onBehalf" type="text" placeholder="On Be Half of company">
+        </label>
+        <label>Default bill title
+          <input id="defaultBillTitle" type="text" placeholder="Bill title">
+        </label>
+        <div class="button-row">
+          <button id="saveCompany" class="button" type="button">Save as company</button>
+          <button id="clearProfile" class="button ghost" type="button">Clear</button>
+        </div>
+      </section>
+
+      <section class="panel" id="otherIdentity">
+        <h2>Other company</h2>
+        <label>Company name
+          <input id="otherCompanyName" type="text" placeholder="Company name">
+        </label>
+        <label>Signatory
+          <input id="otherSignatory" type="text" placeholder="Signatory">
+        </label>
+        <label>Designation
+          <input id="otherDesignation" type="text" placeholder="Designation">
+        </label>
+        <label>Reference no.
+          <input id="otherRef" type="text" placeholder="Reference no.">
+        </label>
+        <label>Logo
+          <input id="logoUpload" type="file" accept="image/*">
+        </label>
+      </section>
+
+      <section class="panel" id="unityIdentity">
+        <h2>Unity identity</h2>
+        <div class="locked-logo"><img src="assets/logo.png" alt="Unity logo"></div>
+        <div class="locked-field"><span>Company</span><strong>Unity Trading International</strong></div>
+        <div class="locked-field"><span>Signatory</span><strong>Md. Mofijul Islam</strong></div>
+        <div class="locked-field"><span>Designation</span><strong>Entrepreneur</strong></div>
+      </section>
+
+      <section class="panel">
+        <h2>Saved companies</h2>
+        <div id="companyList" class="company-list"></div>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="toolbar">
+        <div class="segmented">
+          <button id="billTab" class="active" type="button">Bill</button>
+          <button id="challanTab" type="button">Challan</button>
+        </div>
+        <label class="toggle"><input id="capitalizeToggle" type="checkbox" checked> Auto-capitalize</label>
+        <label class="toggle"><input id="commaToggle" type="checkbox" checked> Auto-commas</label>
+      </div>
+
+      <section class="panel document-controls">
+        <div class="field-grid">
+          <label>Reference no.
+            <input id="documentRef" type="text">
+          </label>
+          <label>Date
+            <input id="documentDate" type="date">
+          </label>
+          <label id="requisitionWrap">Requisition no.
+            <input id="requisitionNo" type="text" placeholder="Optional">
+          </label>
+          <label id="challanNoWrap" hidden>Challan no.
+            <input id="challanNo" type="text" placeholder="Optional">
+          </label>
+        </div>
+
+        <label id="billTitleWrap">Bill title
+          <input id="billTitle" type="text" placeholder="Bill title">
+        </label>
+
+        <div class="items-head">
+          <h2 id="itemsHeading">Items</h2>
+          <button id="addRow" class="button ghost" type="button">+ Add item</button>
+        </div>
+        <div id="itemsTable"></div>
+      </section>
+
+      <div class="action-bar">
+        <button id="saveDocument" class="button" type="button">Save document</button>
+        <button id="reopenDocument" class="button ghost" type="button">Reopen saved</button>
+        <button id="downloadPdf" class="button" type="button">Download PDF</button>
+        <button id="downloadDocx" class="button" type="button">Download DOCX</button>
+      </div>
+
+      <section class="preview-shell">
+        <div id="preview" class="a4-preview"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
+  <script src="js/generator.js"></script>
+</body>
+</html>

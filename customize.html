@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Challan Customization</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html">Bill & Challan Generator</a>
+    <button class="icon-button" id="themeToggle" type="button">Dark</button>
+  </header>
+
+  <main class="customize-layout">
+    <section class="panel">
+      <h1>Challan customization</h1>
+      <p>Settings are saved separately for each Unity client company.</p>
+      <label>Client company
+        <select id="clientSelect"></select>
+      </label>
+      <label>Received By / On Behalf of ... text
+        <input id="receivedText" type="text" placeholder="On Be Half of company">
+      </label>
+      <label>Delivery By label
+        <input id="deliveryLabel" type="text" value="Delivery By">
+      </label>
+      <label>Received By label
+        <input id="receivedLabel" type="text" value="Received By">
+      </label>
+      <div class="button-row">
+        <button id="saveCustomization" class="button" type="button">Save settings</button>
+        <a class="button ghost" href="generator.html?mode=unity">Back to editor</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/customize.js"></script>
+</body>
+</html>
